@@ -25,6 +25,8 @@
 
 package java.util;
 
+import sun.misc.SharedSecrets;
+
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.Serializable;
@@ -34,7 +36,6 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import sun.misc.SharedSecrets;
 
 /**
  * Hash table based implementation of the <tt>Map</tt> interface.  This
@@ -417,6 +418,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The next size value at which to resize (capacity * load factor).
+     * 要调整大小的下一个大小值 (容量 * 负载因子)
      *
      * @serial
      */
@@ -666,21 +668,32 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * Initializes or doubles table size.  If null, allocates in
-     * accord with initial capacity target held in field threshold.
-     * Otherwise, because we are using power-of-two expansion, the
-     * elements from each bin must either stay at same index, or move
-     * with a power of two offset in the new table.
-     *
+     * Initializes or doubles table size.
+     * 初始化或者加倍 table 大小
+     * If null, allocates in accord with initial capacity target held in field threshold.
+     * 如果为空，则按照字段阈值中持有的初始容量目标进行分配
+     * Otherwise, because we are using power-of-two expansion,
+     * 否则，因为我们用的是2的幂展开
+     * the elements from each bin must either stay at same index,
+     * 每个容器中的元素必须保持相同的索引
+     * or move with a power of two offset in the new table.
+     * 或者在新表中以2的幂移动偏移量
      * @return the table
      */
     final Node<K,V>[] resize() {
+        // 老的 tab
         Node<K,V>[] oldTab = table;
+        // 老的 tab length
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        // 本次扩容的容量
         int oldThr = threshold;
+        // 新 tab length, 下一次需要扩容的容量
         int newCap, newThr = 0;
+        // -------- 这部分代码只是用来计算下次需要扩展的容量-----------
         if (oldCap > 0) {
+            // 最大容量 1 << 30
             if (oldCap >= MAXIMUM_CAPACITY) {
+                // 下次最大容量就是int 最大值
                 threshold = Integer.MAX_VALUE;
                 return oldTab;
             }
@@ -700,7 +713,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                       (int)ft : Integer.MAX_VALUE);
         }
         threshold = newThr;
+        // -------- -------------------- -----------
+
+        // -------------- 开始扩容 ----------------
         @SuppressWarnings({"rawtypes","unchecked"})
+        // newCap = oldCap << 1 原本数量左移了一位
         Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
         table = newTab;
         if (oldTab != null) {
