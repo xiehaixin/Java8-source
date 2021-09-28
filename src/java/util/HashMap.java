@@ -233,18 +233,21 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The default initial capacity - MUST be a power of two.
+     * 默认的初始容量-必须是2的幂。
      */
-    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
+    static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16 又名 16
 
     /**
      * The maximum capacity, used if a higher value is implicitly specified
      * by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30.
+     * 最大容量
      */
     static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The load factor used when none specified in constructor.
+     * 在构造函数中未指定时使用的负载系数。
      */
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
@@ -255,6 +258,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * than 2 and should be at least 8 to mesh with assumptions in
      * tree removal about conversion back to plain bins upon
      * shrinkage.
+     * 使用树而不是列表的容器计数阈值。当向至少有这么多节点的容器中添加元素时，容器被转换为树。
+     * 该值必须大于2，并且应该至少为8，以与关于在收缩时转换回普通bins的树移除假设相匹配。
      */
     static final int TREEIFY_THRESHOLD = 8;
 
@@ -262,6 +267,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * The bin count threshold for untreeifying a (split) bin during a
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
+     * 在调整大小操作期间取消(分割)存储库的存储库计数阈值。
+     * 应小于TREEIFY_THRESHOLD，且最多为6，以去除收缩检测下的网格。
      */
     static final int UNTREEIFY_THRESHOLD = 6;
 
@@ -270,6 +277,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * (Otherwise the table is resized if too many nodes in a bin.)
      * Should be at least 4 * TREEIFY_THRESHOLD to avoid conflicts
      * between resizing and treeification thresholds.
+     * 可以树形化容器的最小表容量。
+     * (否则，如果容器中的 nodes 太多，则会调整表的大小。)
+     * 应该至少为4 * TREEIFY_THRESHOLD，以避免调整大小和树形化阈值之间的冲突。
      */
     static final int MIN_TREEIFY_CAPACITY = 64;
 
@@ -393,6 +403,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * necessary. When allocated, length is always a power of two.
      * (We also tolerate length zero in some operations to allow
      * bootstrapping mechanics that are currently not needed.)
+     *
+     * 该表在第一次使用时初始化，并根据需要调整大小。当分配时，长度总是2的幂。
+     * (我们还允许某些操作的长度为零，以允许当前不需要的自举机制。)
      */
     transient Node<K,V>[] table;
 
@@ -404,15 +417,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The number of key-value mappings contained in this map.
+     *
+     * 此 map 中包含的键-值映射的数量。
      */
     transient int size;
 
     /**
      * The number of times this HashMap has been structurally modified
+     * 这个HashMap被结构修改的次数
      * Structural modifications are those that change the number of mappings in
      * the HashMap or otherwise modify its internal structure (e.g.,
      * rehash).  This field is used to make iterators on Collection-views of
      * the HashMap fail-fast.  (See ConcurrentModificationException).
+     *
+     * 结构修改是指改变HashMap中的映射数量或修改其内部结构 (e.g.,rehash)。该字段用于使HashMap的集合视图上的迭代器快速失败。
      */
     transient int modCount;
 
@@ -430,6 +448,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The load factor for the hash table.
+     * 哈希表的加载因子。
      *
      * @serial
      */
