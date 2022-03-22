@@ -286,6 +286,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Basic hash bin node, used for most entries.  (See below for
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
+     * 基本的哈希存储节点，用于大多数条目。(参见下面的TreeNode子类,以及LinkedHashMap的Entry子类)
      */
     static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
@@ -304,6 +305,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         public final V getValue()      { return value; }
         public final String toString() { return key + "=" + value; }
 
+        /**
+         * Objects.hashCode(o)  =>  o != null ? o.hashCode() : 0;
+         * @return
+         */
         public final int hashCode() {
             return Objects.hashCode(key) ^ Objects.hashCode(value);
         }
@@ -314,12 +319,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return oldValue;
         }
 
+        /**
+         *  主要判断是否== ，如果o是 Map 就判断 Map的key和value和自己的key、value相不相等
+         * @param o
+         * @return
+         */
         public final boolean equals(Object o) {
             if (o == this)
                 return true;
             if (o instanceof Map.Entry) {
                 Map.Entry<?,?> e = (Map.Entry<?,?>)o;
+                // 里面是 key.equals(e.getKey())
                 if (Objects.equals(key, e.getKey()) &&
+                    // value.equals(e.getValue())
                     Objects.equals(value, e.getValue()))
                     return true;
             }
@@ -344,6 +356,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * cheapest possible way to reduce systematic lossage, as well as
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
+     *
+     * hashCode 异或 (hashCode右移16位)
      */
     static final int hash(Object key) {
         int h;
@@ -353,6 +367,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns x's Class if it is of the form "class C implements
      * Comparable<C>", else null.
+     * 如果是Comparable的实现类 则返回 Class，否则返回 null
      */
     static Class<?> comparableClassFor(Object x) {
         if (x instanceof Comparable) {
@@ -376,6 +391,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns k.compareTo(x) if x matches kc (k's screened comparable
      * class), else 0.
+     * 比较一定有大小，相等或为null都为0
      */
     @SuppressWarnings({"rawtypes","unchecked"}) // for cast to Comparable
     static int compareComparables(Class<?> kc, Object k, Object x) {
@@ -385,6 +401,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Returns a power of two size for the given target capacity.
+     * 返回给定目标容量的2次幂大小。
+     * TODO 用来扩容时候都容量计算的？
      */
     static final int tableSizeFor(int cap) {
         int n = cap - 1;
@@ -412,6 +430,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Holds cached entrySet(). Note that AbstractMap fields are used
      * for keySet() and values().
+     *
+     * 保存entrySet()的缓存。
+     * 注意，AbstractMap 字段用于 keySet() 和 values()。
      */
     transient Set<Map.Entry<K,V>> entrySet;
 
@@ -460,10 +481,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Constructs an empty <tt>HashMap</tt> with the specified initial
      * capacity and load factor.
      *
-     * @param  initialCapacity the initial capacity
-     * @param  loadFactor      the load factor
+     * 用指定的初始容量和负载因子构造一个空的 HashMap
+     *
+     * @param  initialCapacity the initial capacity 初始容量
+     * @param  loadFactor      the load factor  负载因子
      * @throws IllegalArgumentException if the initial capacity is negative
      *         or the load factor is nonpositive
+     *
+     *         IllegalArgumentException 如果初始容量为负或负载因子非正
      */
     public HashMap(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
@@ -475,12 +500,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             throw new IllegalArgumentException("Illegal load factor: " +
                                                loadFactor);
         this.loadFactor = loadFactor;
+        // threshold 提前准备下次扩容的大小 => 返回初始容量的2次幂大小。(tableSizeFor() 返回给定目标容量的2次幂大小)
         this.threshold = tableSizeFor(initialCapacity);
     }
 
     /**
      * Constructs an empty <tt>HashMap</tt> with the specified initial
      * capacity and the default load factor (0.75).
+     *
+     * 构造一个空的 HashMap ，具有指定的初始容量和默认的负载因子(0.75)
      *
      * @param  initialCapacity the initial capacity.
      * @throws IllegalArgumentException if the initial capacity is negative.
@@ -492,9 +520,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Constructs an empty <tt>HashMap</tt> with the default initial capacity
      * (16) and the default load factor (0.75).
+     *
+     * 构造一个空的 HashMap ，具有默认的初始容量(16)和默认的负载因子(0.75)
      */
     public HashMap() {
-        this.loadFactor = DEFAULT_LOAD_FACTOR; // all other fields defaulted
+        this.loadFactor = DEFAULT_LOAD_FACTOR; // all other fields defaulted    所有其他字段默认
     }
 
     /**
@@ -503,8 +533,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * default load factor (0.75) and an initial capacity sufficient to
      * hold the mappings in the specified <tt>Map</tt>.
      *
-     * @param   m the map whose mappings are to be placed in this map
-     * @throws  NullPointerException if the specified map is null
+     * 用与指定的 Map 相同的映射构造一个新的 HashMap。
+     * HashMap 是用默认的负载因子(0.75)和一个初始容量创建的，该容量足以容纳指定的 Map 中的映射。
+     *
+     * @param   m the map whose mappings are to be placed in this map   要在这个 map 上放置其映射的 map
+     * @throws  NullPointerException if the specified map is null   如果指定的映射为空
      */
     public HashMap(Map<? extends K, ? extends V> m) {
         this.loadFactor = DEFAULT_LOAD_FACTOR;
@@ -514,22 +547,29 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Implements Map.putAll and Map constructor.
      *
+     * 实现了 map。putAll和Map构造函数。
+     *
      * @param m the map
      * @param evict false when initially constructing this map, else
-     * true (relayed to method afterNodeInsertion).
+     * true (relayed to method afterNodeInsertion). 初始构造此 map 时为false，否则为true (中继到方法后节点插入)
+     *
+     * Node 没初始化就先处理下次扩容的大小，如果 Node 已经初始化了，并且 m 的长度大于下次要扩容的值时，就进行 resize
+     * 上面处理完了，就循环复制m的内容
      */
     final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
         int s = m.size();
         if (s > 0) {
-            if (table == null) { // pre-size
+            if (table == null) { // pre-size     Node table == null  先设置下次扩容的大小
                 float ft = ((float)s / loadFactor) + 1.0F;
                 int t = ((ft < (float)MAXIMUM_CAPACITY) ?
                          (int)ft : MAXIMUM_CAPACITY);
                 if (t > threshold)
                     threshold = tableSizeFor(t);
             }
-            else if (s > threshold)
+            else if (s > threshold) // 如果 m的长度 已经大于 下次扩容的大小，进行resize
                 resize();
+
+            // 循环复制内容
             for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
                 K key = e.getKey();
                 V value = e.getValue();
@@ -541,6 +581,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns the number of key-value mappings in this map.
      *
+     * 返回此映射中的键-值映射的数目。
+     *
      * @return the number of key-value mappings in this map
      */
     public int size() {
@@ -551,6 +593,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns <tt>true</tt> if this map contains no key-value mappings.
      *
      * @return <tt>true</tt> if this map contains no key-value mappings
+     *
+     * 判断 size 是否为 0
      */
     public boolean isEmpty() {
         return size == 0;
@@ -581,9 +625,23 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Implements Map.get and related methods.
      *
+     * 实现了 map。获取和相关方法。
+     *
      * @param hash hash for key
      * @param key the key
      * @return the node, or null if none
+     *
+     * 获取 Node节点
+     *
+     * 里面有5个if
+     *
+     * 1. table 已经初始化 && table长度 >0 && table数组的第一个元素不等 null TODO 这里的 tab[(n - 1) & hash]) 不太理解
+     * 2. table数组的第一个元素里的hash 等于 入参的 hash，那就很凑巧了， 再判断一下 key 是否等于 如此的 key ，那就更凑巧了，就是第一个元素了
+     * 3. table数组的第一个元素里的next，不等 null   TODO next是指什么
+     * 4. table数组的第一个元素是否为 树，如果为树，进行树的检索getTreeNode TODO TreeNode 指的就是红黑树？
+     * 5. table数组的第一个元素开始循环往下(往first的.next.next.next)找了，跟第2个if的判断是一样的
+     *
+     *
      */
     final Node<K,V> getNode(int hash, Object key) {
         Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
@@ -608,6 +666,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns <tt>true</tt> if this map contains a mapping for the
      * specified key.
+     *
+     * 如果该映射包含指定键的映射，则返回 true
+     *
+     * 一直以为这个效率会比get高，没想到一样的
      *
      * @param   key   The key whose presence in this map is to be tested
      * @return <tt>true</tt> if this map contains a mapping for the specified
@@ -636,12 +698,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Implements Map.put and related methods.
      *
+     * 实现了 map。put 和相关的方法。
+     *
      * @param hash hash for key
      * @param key the key
      * @param value the value to put
-     * @param onlyIfAbsent if true, don't change existing value
-     * @param evict if false, the table is in creation mode.
-     * @return previous value, or null if none
+     * @param onlyIfAbsent if true, don't change existing value 如果为true，则不更改现有值，该方法就变成只为了寻找旧值而已，和getNode的差别就在于 putVal() 会 resize
+     * @param evict if false, the table is in creation mode.    如果为false，表示表处于创建模式。
+     * @return previous value, or null if none  之前的值，如果没有则为空
      */
     final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
                    boolean evict) {
@@ -649,6 +713,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
         if ((p = tab[i = (n - 1) & hash]) == null)
+            // 会出现并发问题
             tab[i] = newNode(hash, key, value, null);
         else {
             Node<K,V> e; K k;
@@ -662,6 +727,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            // 开始转成树容器
                             treeifyBin(tab, hash);
                         break;
                     }
@@ -671,7 +737,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     p = e;
                 }
             }
-            if (e != null) { // existing mapping for key
+            if (e != null) { // existing mapping for key    现有的 key 映射
                 V oldValue = e.value;
                 if (!onlyIfAbsent || oldValue == null)
                     e.value = value;
@@ -679,24 +745,27 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 return oldValue;
             }
         }
+        // 记录操作次数+1。  会出现并发问题
         ++modCount;
+        // 会出现并发问题
         if (++size > threshold)
             resize();
+
+        // 钩子函数
         afterNodeInsertion(evict);
         return null;
     }
 
     /**
      * Initializes or doubles table size.
-     * 初始化或者加倍 table 大小
+     * 初始化或者加倍 table 大小。
      * If null, allocates in accord with initial capacity target held in field threshold.
-     * 如果为空，则按照字段阈值中持有的初始容量目标进行分配
+     * 如果为空，则按照字段阈值中持有的初始容量目标进行分配。
      * Otherwise, because we are using power-of-two expansion,
      * 否则，因为我们用的是2的幂展开
      * the elements from each bin must either stay at same index,
-     * 每个容器中的元素必须保持相同的索引
      * or move with a power of two offset in the new table.
-     * 或者在新表中以2的幂移动偏移量
+     * 每个容器中的元素必须保持相同的索引，或者在新表中以2的幂移动偏移量
      * @return the table
      */
     final Node<K,V>[] resize() {
@@ -1814,7 +1883,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         size = 0;
     }
 
-    // Callbacks to allow LinkedHashMap post-actions
+    // Callbacks to allow LinkedHashMap post-actions    允许LinkedHashMap post-action的回调
     void afterNodeAccess(Node<K,V> p) { }
     void afterNodeInsertion(boolean evict) { }
     void afterNodeRemoval(Node<K,V> p) { }
