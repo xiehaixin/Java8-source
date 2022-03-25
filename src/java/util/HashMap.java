@@ -777,7 +777,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int oldThr = threshold;
         // 新 tab length, 下一次需要扩容的容量
         int newCap, newThr = 0;
-        // -------- 这部分代码只是用来计算下次需要扩展的容量-----------
+
+        // >>>>>>>>>>>>> 这部分代码只是用来计算下次需要扩展的容量 >>>>>>>>>>>>>>>>
+
+        /*
+        * 1.如果 table 不等 null 并且长度大于 0
+        *   1.如果已经已经是最大容量的，就不再扩充了 return
+        *   2.如果当前 table 长度大于默认初始化的长度，table 先计算下一次需要扩充的容量，先暂时记录在 newThr ，值为这次 threshold << 1 就是左移1位
+        * 2.如果这次扩容的容量是大于 0，那就先在 newCap 记录着
+        * 3.如果 table 等于 null 或者 长度为 0 就代表只是做初始化：newCap 为初始化值 16，newThr 也是初始化的下次扩充的值 (int)(0.75 * newCap)
+        * 4.如果下次要扩充的值为0，那就用到 loadFactor 了，计算 newThr  newCap * loadFactor TODO 不知道什么时候会走到这个分支，后面再看看
+        * 下次要扩充的值就已经算好了
+        */
         if (oldCap > 0) {
             // 最大容量 1 << 30
             if (oldCap >= MAXIMUM_CAPACITY) {
@@ -787,11 +798,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
             else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
-                newThr = oldThr << 1; // double threshold
+                // 下一次需要扩充的容量为 threshold << 1 左移1位
+                newThr = oldThr << 1; // double threshold 双倍 threshold
         }
-        else if (oldThr > 0) // initial capacity was placed in threshold
+        else if (oldThr > 0) // initial capacity was placed in threshold    初始容量设置为阈值
             newCap = oldThr;
-        else {               // zero initial threshold signifies using defaults
+        else {               // zero initial threshold signifies using defaults 零初始阈值表示使用默认值
             newCap = DEFAULT_INITIAL_CAPACITY;
             newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
         }
@@ -801,9 +813,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                       (int)ft : Integer.MAX_VALUE);
         }
         threshold = newThr;
-        // -------- -------------------- -----------
+        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-        // -------------- 开始扩容 ----------------
+        // >>>>>>>>>>>>>>>>> 开始扩容 >>>>>>>>>>>>>>>>>>
+
         @SuppressWarnings({"rawtypes","unchecked"})
         // newCap = oldCap << 1 原本数量左移了一位
         Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
@@ -812,12 +825,56 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             for (int j = 0; j < oldCap; ++j) {
                 Node<K,V> e;
                 if ((e = oldTab[j]) != null) {
+                    // 断开引用
                     oldTab[j] = null;
+                    // 如果e 没有下个节点，重新hash然后找位置
                     if (e.next == null)
                         newTab[e.hash & (newCap - 1)] = e;
+
+                    // TODO split方法是树的重新找位置方法？
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
-                    else { // preserve order
+                    else { // preserve order 维持秩序
+                        /* 桶分割
+                         * 分两组 1. loHead、loTail
+                         *       2. hiHead、hiTail
+                         *       原先的结构：loHead -> loTail -> hiHead -> hiTail
+                         *       会将 loTail -> hiHead 拆掉
+                         *       变成 [j] = loHead -> loTail  (==0)
+                         *           [j + oldCap] = hiHead -> hiTail    (!=0)
+                         *
+                         * 为什么要用桶分割，因为这种算法很神奇，就是能分割的正确。
+                         * 原理为二进制计算
+                         * 1.HashMap 初始化长度n为 16，n 二进制为 10000，n-1 二进制为 1111
+                         *      两个key，key1.hash = 50，key2.hash = 82，  二进制分别为 0110010，1010010
+                         *      根据计算 (hash & n-1),   也就是：1111
+                         *                                 0110010 -> 0010 = 2
+                         *                                 1010010 -> 0010 = 2
+                         *      这两个key就是在下标[2]
+                         * 2.扩容，n 长度为 32，n 二进制为 100000，n-1 二进制为 11111
+                         *      根据计算 (hash & oldn) == 0 ? 停留原下标 : 原下标+oldn
+                         *      oldn 二进制为：10000
+                         *                 0110010 -> 10000  -> != 0 : = 2+16 = 18
+                         *                 1010010 -> 10000  -> != 0 : = 2+16 = 18
+                         *      这两个key就是这下标[18]
+                         *      进行验算一下：
+                         *      根据计算 (hash & n-1),   也就是：11111
+                         *                                  0110010 -> 10010 = 18
+                         *                                  1010010 -> 10010 = 18
+                         *      验算成功，就是在 [18]
+                         * 3.再扩容，n 长度为 64，n 二进制为 1000000，n-1 二进制为 111111
+                         *      根据计算 (hash & oldn) == 0 ?停留原下标 : 原下标+old
+                         *      oldn 二进制为：100000
+                         *                  0110010 -> 100000 -> !=0 : = 18+32 = 50
+                         *                  1010010 -> 000000 -> ==0 : = 18+0  = 18
+                         *      这两个key下标分别为50，18
+                         *      进行验算一下：
+                         *      根据计算 (hash & n-1)，  也就是：111111
+                         *                                   0110010 -> 110010 = 50
+                         *                                   1010010 -> 010010 = 18
+                         *      验算成功，就是在 [50]，[18]
+                         *
+                         */
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
@@ -825,24 +882,30 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                             next = e.next;
                             if ((e.hash & oldCap) == 0) {
                                 if (loTail == null)
+                                    // 获取头部
                                     loHead = e;
                                 else
+                                    // 获取头部下的链表结构Node
                                     loTail.next = e;
                                 loTail = e;
                             }
                             else {
                                 if (hiTail == null)
+                                    // 获取头部
                                     hiHead = e;
                                 else
+                                    // 获取头部下的链表结构Node
                                     hiTail.next = e;
                                 hiTail = e;
                             }
                         } while ((e = next) != null);
                         if (loTail != null) {
+                            // 一个链表断开成两个
                             loTail.next = null;
                             newTab[j] = loHead;
                         }
                         if (hiTail != null) {
+                            // 断开
                             hiTail.next = null;
                             newTab[j + oldCap] = hiHead;
                         }
