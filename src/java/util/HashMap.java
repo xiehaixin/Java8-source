@@ -919,14 +919,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Replaces all linked nodes in bin at index for given hash unless
      * table is too small, in which case resizes instead.
+     *
+     * 替换给定哈希的容器中所有的链接节点，除非表太小，在这种情况下改为调整大小。
+     *
+     * 转成树容器
      */
     final void treeifyBin(Node<K,V>[] tab, int hash) {
         int n, index; Node<K,V> e;
         if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
             resize();
         else if ((e = tab[index = (n - 1) & hash]) != null) {
+            // hd = head头  tl = tail尾
             TreeNode<K,V> hd = null, tl = null;
             do {
+                // new 一个新的 TreeNode 变成树节点
                 TreeNode<K,V> p = replacementTreeNode(e, null);
                 if (tl == null)
                     hd = p;
@@ -946,21 +952,30 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * These mappings will replace any mappings that this map had for
      * any of the keys currently in the specified map.
      *
+     * 将所有映射从指定映射复制到此映射。
+     * 这些映射将替换该映射对指定映射中当前任何键的任何映射。
+     *
      * @param m mappings to be stored in this map
      * @throws NullPointerException if the specified map is null
      */
     public void putAll(Map<? extends K, ? extends V> m) {
+        // 循环赋值，达到条件会resize
         putMapEntries(m, true);
     }
 
     /**
      * Removes the mapping for the specified key from this map if present.
      *
-     * @param  key key whose mapping is to be removed from the map
+     * 如果存在，则从该映射中移除指定键的映射。
+     *
+     * @param  key key whose mapping is to be removed from the map  键，该键的映射要从映射中移除
      * @return the previous value associated with <tt>key</tt>, or
      *         <tt>null</tt> if there was no mapping for <tt>key</tt>.
      *         (A <tt>null</tt> return can also indicate that the map
      *         previously associated <tt>null</tt> with <tt>key</tt>.)
+     *
+     *         如果 key 没有映射，则与 key 关联的上一个值，或者 null 。
+     *         (一个 null 返回值也可以指示先前关联的映射 null 与 key 。)
      */
     public V remove(Object key) {
         Node<K,V> e;
@@ -971,12 +986,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Implements Map.remove and related methods.
      *
+     * 实现了 map。删除和相关方法。
+     *
      * @param hash hash for key
      * @param key the key
-     * @param value the value to match if matchValue, else ignored
-     * @param matchValue if true only remove if value is equal
-     * @param movable if false do not move other nodes while removing
-     * @return the node, or null if none
+     * @param value the value to match if matchValue, else ignored 如果匹配matchValue，则忽略
+     * @param matchValue if true only remove if value is equal  如果为true，只在value相等时移除
+     * @param movable if false do not move other nodes while removing   如果为false，则删除时不移动其他节点
+     * @return the node, or null if none    节点，如果没有则为空
+     *
+     * 先从数组取出判断是否是链表的第一个，如果不是，递归查找 e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k)))
+     *
+     * 找到对应的node ，
+     * 如果是树就执行树节点的删除
+     * 反之，如果是第一个就指向next，不是就 parent.next = node.next;
      */
     final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
@@ -984,6 +1007,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (p = tab[index = (n - 1) & hash]) != null) {
             Node<K,V> node = null, e; K k; V v;
+            // 查找逻辑
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 node = p;
@@ -991,6 +1015,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 if (p instanceof TreeNode)
                     node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
                 else {
+                    // 递归
                     do {
                         if (e.hash == hash &&
                             ((k = e.key) == key ||
@@ -1002,6 +1027,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     } while ((e = e.next) != null);
                 }
             }
+            // 删除逻辑
             if (node != null && (!matchValue || (v = node.value) == value ||
                                  (value != null && value.equals(v)))) {
                 if (node instanceof TreeNode)
@@ -1022,6 +1048,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
+     *
+     * 从该映射中删除所有映射。
+     * 在此调用返回后，映射将为空。
      */
     public void clear() {
         Node<K,V>[] tab;
@@ -1037,9 +1066,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns <tt>true</tt> if this map maps one or more keys to the
      * specified value.
      *
-     * @param value value whose presence in this map is to be tested
+     * 如果该映射将一个或多个键映射到指定的值，则返回 true。
+     *
+     * @param value value whose presence in this map is to be tested    值，该值在此 map 中的存在性将被测试
      * @return <tt>true</tt> if this map maps one or more keys to the
      *         specified value
+     *
+     *         true，如果该映射将一个或多个键映射到指定的值
+     *
+     * 双 for循环查找，效率贼低
      */
     public boolean containsValue(Object value) {
         Node<K,V>[] tab; V v;
@@ -1068,12 +1103,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * operations.  It does not support the <tt>add</tt> or <tt>addAll</tt>
      * operations.
      *
-     * @return a set view of the keys contained in this map
+     * 返回该映射中包含的键的{@link Set}视图。
+     * 该集合由 map 支持，所以 map 的变化会反映在集合中，反之亦然。
+     * 如果映射在对集合进行迭代时被修改（除了通过迭代器自己的 remove 操作），迭代的结果没有定义。
+     * 该集合支持删除元素，哪个从映射中移除相应的映射，通过 Iterator.remove、Set.remove、removeAll、retainAll 和 clear 操作。
+     * 不支持 add 或 addAll 操作
+     *
+     *
+     * @return a set view of the keys contained in this map 此映射中包含的键的集合视图
      */
     public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
-            ks = new KeySet();
+            new KeySet();
             keySet = ks;
         }
         return ks;
@@ -1119,7 +1161,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * <tt>retainAll</tt> and <tt>clear</tt> operations.  It does not
      * support the <tt>add</tt> or <tt>addAll</tt> operations.
      *
-     * @return a view of the values contained in this map
+     * 返回包含在该映射中的值的{@link Collection}视图。
+     * 集合由映射支持，因此对映射的更改反映在集合中，反之亦然。
+     * 如果映射在对集合进行迭代时被修改（除了通过迭代器自己的 remove 操作），
+     * 迭代的结果没有定义。
+     * 该集合支持移除元素，即从映射中移除相应的映射，通过 Iterator.remove、Collection.remove、removeAll、retainAll 和 clear 操作。
+     * 不支持 add 或 addAll 操作
+     *
+     * @return a view of the values contained in this map   此映射中包含的值的视图
      */
     public Collection<V> values() {
         Collection<V> vs = values;
@@ -1167,6 +1216,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * <tt>Set.remove</tt>, <tt>removeAll</tt>, <tt>retainAll</tt> and
      * <tt>clear</tt> operations.  It does not support the
      * <tt>add</tt> or <tt>addAll</tt> operations.
+     *
+     * 返回该映射中包含的键的{@link Set}视图。
+     * 集合由map支持，因此对map的更改反映在集合中，反之亦然。
+     * 如果在对集合进行迭代时修改了映射（除非通过迭代器自己的 remove 操作，或者通过迭代器返回的map表项的 setValue 操作），则迭代的结果是未定义的。
+     * set支持移除元素，即从map中移除对应的映射，通过 Iterator.remove、Set.remove、removeAll、retainAll 和 clear 操作。
+     * 不支持 add 或 addAll 操作
+     *
      *
      * @return a set view of the mappings contained in this map
      */
@@ -1219,6 +1275,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     // Overrides of JDK8 Map extension methods
 
+    /**
+     * 获取，没有就取默认值
+     * @param key
+     * @param defaultValue
+     * @return
+     */
     @Override
     public V getOrDefault(Object key, V defaultValue) {
         Node<K,V> e;
@@ -1259,6 +1321,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return null;
     }
 
+    /**
+     * 对 hashMap 中指定 key 的值进行重新计算，如果不存在这个 key，则添加到 hashMap 中，如果计算出来的 value 为 null 则不操作。
+     * @param key
+     * @param mappingFunction
+     * @return
+     *
+     * key不存在则添加，value为null则不管
+     */
     @Override
     public V computeIfAbsent(K key,
                              Function<? super K, ? extends V> mappingFunction) {
@@ -1269,9 +1339,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int binCount = 0;
         TreeNode<K,V> t = null;
         Node<K,V> old = null;
+        // 如果满足扩容条件就先扩容
         if (size > threshold || (tab = table) == null ||
             (n = tab.length) == 0)
             n = (tab = resize()).length;
+        //
         if ((first = tab[i = (n - 1) & hash]) != null) {
             if (first instanceof TreeNode)
                 old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
@@ -1313,6 +1385,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return v;
     }
 
+    /**
+     * 对 hashMap 中指定 key 的 value 进行重新计算，如果 key 不存在，则不操作，如果计算出来的 value 为 null 则删除该 key
+     * @param key
+     * @param remappingFunction
+     * @return
+     *
+     * key不存在则不管，value为null则删除
+     */
     public V computeIfPresent(K key,
                               BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         if (remappingFunction == null)
@@ -1333,6 +1413,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return null;
     }
 
+    /**
+     * 对 hashMap 中指定 key 的 value 进行重新计算，如果 key 不存在，则添加到 hashMap 中，如果计算出来的 value 为 null 则删除该 key
+     * @param key
+     * @param remappingFunction
+     * @return
+     *
+     * key不存在则添加，value为null则删除
+     */
     @Override
     public V compute(K key,
                      BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
@@ -1386,6 +1474,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return v;
     }
 
+    /**
+     * 根据入参 value 对 oldValue 进行合并，如果计算出来对 value 为null，则删除 key，如果key 不存在则put
+     * @param key
+     * @param value
+     * @param remappingFunction
+     * @return
+     */
     @Override
     public V merge(K key, V value,
                    BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
@@ -1461,6 +1556,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
     }
 
+    /**
+     * 双for循环替换全部 value
+     * @param function
+     */
     @Override
     public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
         Node<K,V>[] tab;
@@ -1485,7 +1584,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns a shallow copy of this <tt>HashMap</tt> instance: the keys and
      * values themselves are not cloned.
      *
+     * 返回此 HashMap 实例的浅拷贝:键和值本身没有被克隆。
+     *
      * @return a shallow copy of this map
+     *
+     * 浅拷贝
      */
     @SuppressWarnings("unchecked")
     @Override
@@ -1498,12 +1601,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             throw new InternalError(e);
         }
         result.reinitialize();
+        // 循环复制
         result.putMapEntries(this, false);
         return result;
     }
 
-    // These methods are also used when serializing HashSets
+    // These methods are also used when serializing HashSets    序列化hashset时也会使用这些方法
     final float loadFactor() { return loadFactor; }
+
+    // table 的容量
     final int capacity() {
         return (table != null) ? table.length :
             (threshold > 0) ? threshold :
@@ -1520,6 +1626,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *             mappings), followed by the key (Object) and value (Object)
      *             for each key-value mapping.  The key-value mappings are
      *             emitted in no particular order.
+     *
+     * TODO HashMap.writeObject 序列化相关
      */
     private void writeObject(java.io.ObjectOutputStream s)
         throws IOException {
@@ -1537,6 +1645,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @throws ClassNotFoundException if the class of a serialized object
      *         could not be found
      * @throws IOException if an I/O error occurs
+     *
+     * TODO HashMap.readObject 序列化相关
      */
     private void readObject(java.io.ObjectInputStream s)
         throws IOException, ClassNotFoundException {
@@ -1584,15 +1694,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /* ------------------------------------------------------------ */
-    // iterators
+    // iterators    迭代器相关
 
     abstract class HashIterator {
         Node<K,V> next;        // next entry to return
-        Node<K,V> current;     // current entry
-        int expectedModCount;  // for fast-fail
+        Node<K,V> current;     // current entry 删除时候用
+        int expectedModCount;  // for fast-fail 防止在迭代的时候，修改原 map
         int index;             // current slot
 
         HashIterator() {
+            // 防止在迭代的时候，修改原 map
             expectedModCount = modCount;
             Node<K,V>[] t = table;
             current = next = null;
@@ -1609,6 +1720,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         final Node<K,V> nextNode() {
             Node<K,V>[] t;
             Node<K,V> e = next;
+            // 防止在迭代的时候，修改原 map
             if (modCount != expectedModCount)
                 throw new ConcurrentModificationException();
             if (e == null)
@@ -1652,10 +1764,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     static class HashMapSpliterator<K,V> {
         final HashMap<K,V> map;
-        Node<K,V> current;          // current node
-        int index;                  // current index, modified on advance/split
-        int fence;                  // one past last index
-        int est;                    // size estimate
+        Node<K,V> current;          // current node 当前的节点
+        int index;                  // current index, modified on advance/split 当前的下标，修改前/分裂
+        int fence;                  // one past last index  最后一个指数
+        int est;                    // size estimate    大小估计
         int expectedModCount;       // for comodification checks
 
         HashMapSpliterator(HashMap<K,V> m, int origin,
@@ -1668,7 +1780,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             this.expectedModCount = expectedModCount;
         }
 
-        final int getFence() { // initialize fence and size on first use
+        final int getFence() { // initialize fence and size on first use    在第一次使用时初始化栅栏和大小
             int hi;
             if ((hi = fence) < 0) {
                 HashMap<K,V> m = map;
@@ -1995,6 +2107,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Ensures that the given root is the first node of its bin.
+         *
+         * 确保给定的根节点是其 容器 的第一个节点。
          */
         static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
             int n;
@@ -2063,6 +2177,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * order, just a consistent insertion rule to maintain
          * equivalence across rebalancings. Tie-breaking further than
          * necessary simplifies testing a bit.
+         *
+         * 当hashCodes 相等 且不可比较时，用于排序插入的Tie-breaking实用工具。
+         * 我们不需要一个总的顺序，只要一个一致的插入规则，以保持在重新平衡之间的等价性。
+         * 打破 相等 比必要的情况更能简化测试。
          */
         static int tieBreakOrder(Object a, Object b) {
             int d;
@@ -2076,6 +2194,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Forms tree of the nodes linked from this node.
+         *
+         * 形成从该节点链接的节点树。
          */
         final void treeify(Node<K,V>[] tab) {
             TreeNode<K,V> root = null;
@@ -2098,9 +2218,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                             dir = -1;
                         else if (ph < h)
                             dir = 1;
+
+                        // 比较 k 和 pk ，相等或为null都为0
                         else if ((kc == null &&
                                   (kc = comparableClassFor(k)) == null) ||
                                  (dir = compareComparables(kc, k, pk)) == 0)
+                            // 不可比较的情况
                             dir = tieBreakOrder(k, pk);
 
                         TreeNode<K,V> xp = p;
@@ -2389,9 +2512,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
+        /**
+         * 平衡插入
+         * @param root
+         * @param x
+         * @param <K>
+         * @param <V>
+         * @return
+         */
         static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
             x.red = true;
+            // x.parent, x.parent.parent, x.parent.parent.left, x.parent.parent.right
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
                 if ((xp = x.parent) == null) {
                     x.red = false;
@@ -2538,6 +2670,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Recursive invariant check
+         *
+         * 递归不变量检查
          */
         static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
