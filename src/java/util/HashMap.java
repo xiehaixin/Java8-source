@@ -2023,30 +2023,36 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Nearly all other internal methods are also package-protected
      * but are declared final, so can be used by LinkedHashMap, view
      * classes, and HashSet.
+     *
+     * 下面的包保护方法被LinkedHashMap覆盖，但不是由任何其他子类。
+     * 几乎所有其他内部方法也是包保护的，但被声明为final，所以可以在LinkedHashMap上使用，视图类和HashSet。
+     *
      */
 
-    // Create a regular (non-tree) node
+    // Create a regular (non-tree) node 创建一个常规(非树)节点
     Node<K,V> newNode(int hash, K key, V value, Node<K,V> next) {
         return new Node<>(hash, key, value, next);
     }
 
-    // For conversion from TreeNodes to plain nodes
+    // For conversion from TreeNodes to plain nodes 用于从TreeNodes转换为普通节点
     Node<K,V> replacementNode(Node<K,V> p, Node<K,V> next) {
         return new Node<>(p.hash, p.key, p.value, next);
     }
 
-    // Create a tree bin node
+    // Create a tree bin node   创建一个树容器节点
     TreeNode<K,V> newTreeNode(int hash, K key, V value, Node<K,V> next) {
         return new TreeNode<>(hash, key, value, next);
     }
 
-    // For treeifyBin
+    // For treeifyBin   普通节点替换成树节点
     TreeNode<K,V> replacementTreeNode(Node<K,V> p, Node<K,V> next) {
         return new TreeNode<>(p.hash, p.key, p.value, next);
     }
 
     /**
      * Reset to initial default state.  Called by clone and readObject.
+     *
+     * 重置为初始默认状态。由clone和readObject调用。
      */
     void reinitialize() {
         table = null;
@@ -2063,7 +2069,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     void afterNodeInsertion(boolean evict) { }
     void afterNodeRemoval(Node<K,V> p) { }
 
-    // Called only from writeObject, to ensure compatible ordering.
+    // Called only from writeObject, to ensure compatible ordering. 仅从writeObject调用，以确保兼容的排序。
     void internalWriteEntries(java.io.ObjectOutputStream s) throws IOException {
         Node<K,V>[] tab;
         if (size > 0 && (tab = table) != null) {
@@ -2083,12 +2089,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Entry for Tree bins. Extends LinkedHashMap.Entry (which in turn
      * extends Node) so can be used as extension of either regular or
      * linked node.
+     *
+     * 树容器的入口。LinkedHashMap.Entry (这反过来又扩展了Node) 因此可以作为常规或链接节点的扩展。
      */
     static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
-        TreeNode<K,V> parent;  // red-black tree links
+        TreeNode<K,V> parent;  // red-black tree links  红黑树的链接
         TreeNode<K,V> left;
         TreeNode<K,V> right;
-        TreeNode<K,V> prev;    // needed to unlink next upon deletion
+        TreeNode<K,V> prev;    // needed to unlink next upon deletion   需要在删除后解除下一个链接
         boolean red;
         TreeNode(int hash, K key, V val, Node<K,V> next) {
             super(hash, key, val, next);
@@ -2096,6 +2104,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Returns root of tree containing this node.
+         *
+         * 返回包含此节点的树的根。
+         *
+         * 递归往上查找.parent属性
          */
         final TreeNode<K,V> root() {
             for (TreeNode<K,V> r = this, p;;) {
@@ -2136,6 +2148,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Finds the node starting at root p with the given hash and key.
          * The kc argument caches comparableClassFor(key) upon first use
          * comparing keys.
+         *
+         * 使用给定的哈希和键查找从根p开始的节点。
+         * 参数kc在第一次使用比较键时缓存comparableClassFor(key)。
+         *
+         * 也是递归的往下，左右节点的比较检索，后序遍历，先左，再右，最后中
          */
         final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
             TreeNode<K,V> p = this;
@@ -2166,6 +2183,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Calls find for root node.
+         *
+         * 调用查找根节点。
+         *
+         * 从根节点开始找起
          */
         final TreeNode<K,V> getTreeNode(int h, Object k) {
             return ((parent != null) ? root() : this).find(h, k, null);
@@ -2180,7 +2201,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          *
          * 当hashCodes 相等 且不可比较时，用于排序插入的Tie-breaking实用工具。
          * 我们不需要一个总的顺序，只要一个一致的插入规则，以保持在重新平衡之间的等价性。
-         * 打破 相等 比必要的情况更能简化测试。
+         * 打破相等 比必要的情况更能简化测试。
          */
         static int tieBreakOrder(Object a, Object b) {
             int d;
@@ -2196,6 +2217,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Forms tree of the nodes linked from this node.
          *
          * 形成从该节点链接的节点树。
+         *
+         * 将Node转成tree节点
          */
         final void treeify(Node<K,V>[] tab) {
             TreeNode<K,V> root = null;
@@ -2239,12 +2262,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     }
                 }
             }
+            // 确保给定的根节点是其 容器 的第一个节点。
             moveRootToFront(tab, root);
         }
 
         /**
          * Returns a list of non-TreeNodes replacing those linked from
          * this node.
+         *
+         * 返回非树节点列表，替换从该节点链接的节点。
+         * 从树变回普通链表，循环
          */
         final Node<K,V> untreeify(HashMap<K,V> map) {
             Node<K,V> hd = null, tl = null;
@@ -2261,10 +2288,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Tree version of putVal.
+         * 树版本的putVal。
          */
         final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
                                        int h, K k, V v) {
             Class<?> kc = null;
+            // 用来判断是否进行中序遍历，只遍历一次所以需要此开关
             boolean searched = false;
             TreeNode<K,V> root = (parent != null) ? root() : this;
             for (TreeNode<K,V> p = root;;) {
@@ -2278,6 +2307,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
                          (dir = compareComparables(kc, k, pk)) == 0) {
+                    // 检索过一次就知道不存在了，下次不再进行检索了，中序遍历
                     if (!searched) {
                         TreeNode<K,V> q, ch;
                         searched = true;
@@ -2317,6 +2347,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * linkages. If the current tree appears to have too few nodes,
          * the bin is converted back to a plain bin. (The test triggers
          * somewhere between 2 and 6 nodes, depending on tree structure).
+         *
+         * 删除在此调用之前必须存在的给定节点。
+         * 这比典型的红黑删除代码更混乱，因为我们不能将内部节点的内容与由“next”指针固定的叶后续节点进行交换，这些指针在遍历期间可以独立访问。
+         * 所以我们交换了树形连杆。
+         * 如果当前树的节点太少，则将bin转换回普通bin。
+         * (根据树结构的不同，测试会触发2到6个节点)
          */
         final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
                                   boolean movable) {
@@ -2341,18 +2377,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     && (root.right == null
                         || (rl = root.left) == null
                         || rl.left == null))) {
-                tab[index] = first.untreeify(map);  // too small
+                tab[index] = first.untreeify(map);  // too small    太小
                 return;
             }
+            // TODO 看不懂了
             TreeNode<K,V> p = this, pl = left, pr = right, replacement;
             if (pl != null && pr != null) {
                 TreeNode<K,V> s = pr, sl;
-                while ((sl = s.left) != null) // find successor
+                while ((sl = s.left) != null) // find successor 找到接班人
                     s = sl;
-                boolean c = s.red; s.red = p.red; p.red = c; // swap colors
+                boolean c = s.red; s.red = p.red; p.red = c; // swap colors 换颜色
                 TreeNode<K,V> sr = s.right;
                 TreeNode<K,V> pp = p.parent;
-                if (s == pr) { // p was s's direct parent
+                if (s == pr) { // p was s's direct parent   P是s的直接parent
                     p.parent = s;
                     s.right = p;
                 }
@@ -2421,14 +2458,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * or untreeifies if now too small. Called only from resize;
          * see above discussion about split bits and indices.
          *
+         * 将树容器中的节点拆分为上下两个树容器，
+         * 或者，如果现在太小，就取消树形。仅从resize调用;
+         * 参见上面关于分割位和索引的讨论。
+         *
          * @param map the map
-         * @param tab the table for recording bin heads
-         * @param index the index of the table being split
-         * @param bit the bit of hash to split on
+         * @param tab the table for recording bin heads 记录箱头的桌子
+         * @param index the index of the table being split  被分割的表的索引
+         * @param bit the bit of hash to split on   要拆分的哈希位
          */
         final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
             TreeNode<K,V> b = this;
-            // Relink into lo and hi lists, preserving order
+            // Relink into lo and hi lists, preserving order    重新链接到lo和hi列表，保持顺序
             TreeNode<K,V> loHead = null, loTail = null;
             TreeNode<K,V> hiHead = null, hiTail = null;
             int lc = 0, hc = 0;
@@ -2474,8 +2515,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /* ------------------------------------------------------------ */
-        // Red-black tree methods, all adapted from CLR
+        // Red-black tree methods, all adapted from CLR 红黑树方法，都改编自CLR
 
+        // TODO 左旋转
         static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
@@ -2494,6 +2536,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return root;
         }
 
+        // TODO 右旋转
         static <K,V> TreeNode<K,V> rotateRight(TreeNode<K,V> root,
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
@@ -2513,7 +2556,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         /**
-         * 平衡插入
+         * TODO 平衡插入
          * @param root
          * @param x
          * @param <K>
@@ -2576,6 +2619,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
 
+        /**
+         * TODO 平衡删除
+         * @param root
+         * @param x
+         * @param <K>
+         * @param <V>
+         * @return
+         */
         static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
             for (TreeNode<K,V> xp, xpl, xpr;;) {
