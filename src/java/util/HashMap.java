@@ -568,7 +568,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 if (t > threshold)
                     threshold = tableSizeFor(t);
             }
-            // TODO 这个判断会出现一些极限情况，从而影响查询效率，应该改成 else if((s+table.length) > threshold)
+            // putVal里 每添加一个 key 会判断 size > threshold 然后 resize()
             else if (s > threshold) // 如果 m的长度 已经大于 下次扩容的大小，进行resize
                 resize();
 
@@ -638,10 +638,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * 里面有5个if
      *
-     * 1. table 已经初始化 && table长度 >0 && table数组的第一个元素不等 null TODO 这里的 tab[(n - 1) & hash]) 不太理解
+     * 1. table 已经初始化 && table长度 >0 && table数组的第一个元素不等 null && 当前 hash 槽有值
      * 2. table数组的第一个元素里的hash 等于 入参的 hash，那就很凑巧了， 再判断一下 key 是否等于 如此的 key ，那就更凑巧了，就是第一个元素了
-     * 3. table数组的第一个元素里的next，不等 null   TODO next是指什么
-     * 4. table数组的第一个元素是否为 树，如果为树，进行树的检索getTreeNode TODO TreeNode 指的就是红黑树？
+     * 3. table数组的第一个元素里的next，不等 null   (因为槽里是 链表 当前第一个不是 key，那就匹配下一个)
+     * 4. table数组的第一个元素是否为 树，如果为树，进行树的检索getTreeNode （TreeNode 指的就是红黑树）
      * 5. table数组的第一个元素开始循环往下(往first的.next.next.next)找了，跟第2个if的判断是一样的
      *
      *
@@ -702,11 +702,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Implements Map.put and related methods.
      *
      * 实现了 map。put 和相关的方法。
+     * 判断 key 的逻辑为 if (e.hash == hash && ((k = e.key) == key || (key != null && key.equals(k))))
      *
      * @param hash hash for key
      * @param key the key
      * @param value the value to put
-     * @param onlyIfAbsent if true, don't change existing value 如果为true，则不更改现有值，该方法就变成只为了寻找旧值而已，和getNode的差别就在于 putVal() 会 resize
+     * @param onlyIfAbsent if true, don't change existing value 如果为true，则如果原本有值就不更改原值，原本无值或value为null才赋值
      * @param evict if false, the table is in creation mode.    如果为false，表示表处于创建模式。
      * @return previous value, or null if none  之前的值，如果没有则为空
      */
@@ -714,12 +715,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                    boolean evict) {
         Node<K,V>[] tab; Node<K,V> p; int n, i;
         if ((tab = table) == null || (n = tab.length) == 0)
+            // 会出现并发问题
             n = (tab = resize()).length;
         if ((p = tab[i = (n - 1) & hash]) == null)
             // 会出现并发问题
             tab[i] = newNode(hash, key, value, null);
         else {
+            // 根据 key 寻找该 Node 的过程，没有找到则 newNode(else里有 newNode 逻辑) 或者 转为 treeNode(else里有 treeifyBin)
             Node<K,V> e; K k;
+            // p = tab[i=(n-1)&hash]
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
@@ -727,6 +731,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
             else {
                 for (int binCount = 0; ; ++binCount) {
+                    // 进行新值插入到 p.next，插入的是 p.next ，e 依然为 null 这样就可以 ++modCount
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
                         if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
@@ -740,6 +745,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     p = e;
                 }
             }
+            // 找到 key 后赋值 value
             if (e != null) { // existing mapping for key    现有的 key 映射
                 V oldValue = e.value;
                 if (!onlyIfAbsent || oldValue == null)
@@ -785,11 +791,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /*
         * 1.如果 table 不等 null 并且长度大于 0
-        *   1.如果已经已经是最大容量的，就不再扩充了 return
-        *   2.如果当前 table 长度大于默认初始化的长度，table 先计算下一次需要扩充的容量，先暂时记录在 newThr ，值为这次 threshold << 1 就是左移1位
+        *   1) 如果已经是最大容量的，就不再扩充了 return
+        *   2) 如果当前 table 长度大于默认初始化的长度，table 先计算下一次需要扩充的容量，先暂时记录在 newThr ，值为这次 threshold << 1 就是左移1位
         * 2.如果这次扩容的容量是大于 0，那就先在 newCap 记录着
         * 3.如果 table 等于 null 或者 长度为 0 就代表只是做初始化：newCap 为初始化值 16，newThr 也是初始化的下次扩充的值 (int)(0.75 * newCap)
-        * 4.如果下次要扩充的值为0，那就用到 loadFactor 了，计算 newThr  newCap * loadFactor TODO 不知道什么时候会走到这个分支，后面再看看
+        * 4.如果下次要扩充的值为0，那就用到 loadFactor 了，计算 newThr  newCap * loadFactor 走该分支的情况：(oldCap > 0 && (oldCap << 1 >= max_cap || oldCap < default_cap)) || (oldCap == 0 && oldThr > 0)
         * 下次要扩充的值就已经算好了
         */
         if (oldCap > 0) {
@@ -877,6 +883,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                          *                                   1010010 -> 010010 = 18
                          *      验算成功，就是在 [50]，[18]
                          *
+                         *
+                         *
                          */
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
@@ -946,6 +954,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 tl = p;
             } while ((e = e.next) != null);
             if ((tab[index] = hd) != null)
+                // 根据链表转成树结构
                 hd.treeify(tab);
         }
     }
@@ -1118,7 +1127,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     public Set<K> keySet() {
         Set<K> ks = keySet;
         if (ks == null) {
-            new KeySet();
+            ks = new KeySet();
             keySet = ks;
         }
         return ks;
@@ -1300,6 +1309,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return removeNode(hash(key), key, value, true, true) != null;
     }
 
+    /**
+     * 如果匹配到 key 和 value 都相同，则替换 newValue 返回 是否成功
+     * @param key key with which the specified value is associated
+     * @param oldValue value expected to be associated with the specified key
+     * @param newValue value to be associated with the specified key
+     * @return
+     */
     @Override
     public boolean replace(K key, V oldValue, V newValue) {
         Node<K,V> e; V v;
@@ -1312,6 +1328,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         return false;
     }
 
+    /**
+     * 替换值，如果值原本不存在，则不赋值
+     * @param key key with which the specified value is associated
+     * @param value value to be associated with the specified key
+     * @return
+     */
     @Override
     public V replace(K key, V value) {
         Node<K,V> e;
@@ -1330,7 +1352,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param mappingFunction
      * @return
      *
-     * key不存在则添加，value为null则不管
+     * key不存在则添加，计算出来的value为null则不管，否则赋值
      */
     @Override
     public V computeIfAbsent(K key,
@@ -1394,7 +1416,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param remappingFunction
      * @return
      *
-     * key不存在则不管，value为null则删除
+     * key不存在则不管，计算出来的value为null则删除，否则赋值
      */
     public V computeIfPresent(K key,
                               BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
@@ -1422,7 +1444,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param remappingFunction
      * @return
      *
-     * key不存在则添加，value为null则删除
+     * key不存在则添加，计算的value为null则删除，如果 oldValue != null 则不会改变modCount
      */
     @Override
     public V compute(K key,
@@ -2725,7 +2747,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         /**
          * Recursive invariant check
          *
-         * 递归不变量检查
+         * 递归不变量检查 (前序遍历)
          */
         static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
