@@ -241,13 +241,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * The maximum capacity, used if a higher value is implicitly specified
      * by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30.
-     * 最大容量
+     * 最大容量 = 1073741824
      */
     static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The load factor used when none specified in constructor.
-     * 在构造函数中未指定时使用的负载系数。
+     * 在构造函数中未指定时使用的负载系数。= 0.75
      */
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
@@ -402,7 +402,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns a power of two size for the given target capacity.
      * 返回给定目标容量的2次幂大小。
-     * TODO 用来扩容时候都容量计算的？
+     * 用来提前算好下次扩容的容量，这样扩容的时候就可以直接知道要阔到多大的容量了
+     * 通常赋值给 this.threshold
      */
     static final int tableSizeFor(int cap) {
         int n = cap - 1;
@@ -458,6 +459,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * The next size value at which to resize (capacity * load factor).
      * 要调整大小的下一个大小值 (容量 * 负载因子)
+     * 通常通过 this.tableSizeFor(cap)来计算
      *
      * @serial
      */
@@ -469,7 +471,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The load factor for the hash table.
-     * 哈希表的加载因子。
+     * 哈希表的加载因子。 默认 = this.DEFAULT_LOAD_FACTOR = 0.75
      *
      * @serial
      */
@@ -566,6 +568,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 if (t > threshold)
                     threshold = tableSizeFor(t);
             }
+            // TODO 这个判断会出现一些极限情况，从而影响查询效率，应该改成 else if((s+table.length) > threshold)
             else if (s > threshold) // 如果 m的长度 已经大于 下次扩容的大小，进行resize
                 resize();
 
