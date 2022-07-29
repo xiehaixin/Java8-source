@@ -1352,7 +1352,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param mappingFunction
      * @return
      *
-     * key不存在则添加，计算出来的value为null则不管，否则赋值
+     * key不存在则添加，(计算出来的value为null则不管，否则赋值)
      */
     @Override
     public V computeIfAbsent(K key,
@@ -1416,7 +1416,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param remappingFunction
      * @return
      *
-     * key不存在则不管，计算出来的value为null则删除，否则赋值
+     * key不存在则不管，(计算出来的value为null则删除，否则赋值)
      */
     public V computeIfPresent(K key,
                               BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
@@ -1444,7 +1444,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param remappingFunction
      * @return
      *
-     * key不存在则添加，计算的value为null则删除，如果 oldValue != null 则不会改变modCount
+     * key不存在则添加，(计算的value为null则删除，如果 oldValue != null 则不会改变modCount)
      */
     @Override
     public V compute(K key,
@@ -1500,7 +1500,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     }
 
     /**
-     * 根据入参 value 对 oldValue 进行合并，如果计算出来对 value 为null，则删除 key，如果key 不存在则put
+     * 根据入参 value 对 oldValue 进行合并 (oldValue 不为 null 才执行 remappingFunction，没有 oldValue，则直接put)，
+     * 如果计算出来对 value 为null，则删除 key，如果key 不存在则put
      * @param key
      * @param value
      * @param remappingFunction
@@ -1538,6 +1539,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
         if (old != null) {
             V v;
+            // 如果老值不为空就执行合并，老值为空就不执行合并直接将新值put
             if (old.value != null)
                 v = remappingFunction.apply(old.value, value);
             else
@@ -1550,6 +1552,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 removeNode(hash, key, null, false, true);
             return v;
         }
+        // key原本不存在，需要插入的value不为null，那就put
         if (value != null) {
             if (t != null)
                 t.putTreeVal(this, tab, hash, key, value);
@@ -2322,6 +2325,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             boolean searched = false;
             TreeNode<K,V> root = (parent != null) ? root() : this;
             for (TreeNode<K,V> p = root;;) {
+                // dir <=0 ——> left , dir > 0 ——> right
                 int dir, ph; K pk;
                 if ((ph = p.hash) > h)
                     dir = -1;
@@ -2329,6 +2333,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     dir = 1;
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
+
+                // 当 Key 是不能被比较的时候
                 else if ((kc == null &&
                           (kc = comparableClassFor(k)) == null) ||
                          (dir = compareComparables(kc, k, pk)) == 0) {
@@ -2337,11 +2343,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         TreeNode<K,V> q, ch;
                         searched = true;
                         if (((ch = p.left) != null &&
+                                // ch.find 进行递归遍历
                              (q = ch.find(h, k, kc)) != null) ||
                             ((ch = p.right) != null &&
                              (q = ch.find(h, k, kc)) != null))
                             return q;
                     }
+                    // 用一种规则强制排序
                     dir = tieBreakOrder(k, pk);
                 }
 
