@@ -235,6 +235,7 @@ import java.util.stream.Stream;
  *
  * <li> Reductions to scalar doubles, longs, and ints, using a
  * given basis value.</li>
+ * 使用给定的基值将其约化为标量double、long和int。
  *
  * </ul>
  * </li>
@@ -250,6 +251,10 @@ import java.util.stream.Stream;
  * computations. Normally, you would initially choose one of these
  * extreme values, and then measure performance of using in-between
  * values that trade off overhead versus throughput.
+ *
+ * 这些批量操作接受parallelismThresholdargument。如果当前 map 大小估计小于给定阈值，则方法按顺序进行。使用长的值。
+ * 最大值抑制所有并行性。使用值1可以通过将子任务划分为足够多的子任务来充分利用用于所有并行计算的{@linkForkJoinPool#commonPool（）}，
+ * 从而获得最大的并行性。通常，您首先会选择这些极值中的一个，然后在权衡开销和吞吐量的值之间测量使用的性能。
  *
  * <p>The concurrency properties of bulk operations follow
  * from those of ConcurrentHashMap: Any non-null result returned
@@ -269,6 +274,12 @@ import java.util.stream.Stream;
  * reductions have these properties; for example, computing a sum
  * with basis 0 or a minimum with basis MAX_VALUE.
  *
+ * 大容量操作的并发属性遵循ConcurrentHashMap的并发属性：从get（键）和相关访问方法返回的任何非空结果在与相关插入或更新相关之前都会出现。
+ * 任何批量操作的结果都反映了这些每元素关系的组合（但对于整个映射而言，不一定是原子的，除非它以某种方式被认为是静态的）。
+ * 相反，由于映射中的键和值从不为null，null作为当前缺少任何结果的可靠原子指示器。为了保持这个属性，null作为所有非标量归约操作的隐式基础。
+ * 对于double、long和int版本，其基础应该是当与任何其他值组合时，返回该其他值（更正式地说，它应该是归约的标识元素）。
+ * 大多数常见的约化具有这些性质；例如，计算基于0的SUM或基于MAX_VALUE的最小值。
+ *
  * <p>Search and transformation functions provided as arguments
  * should similarly return null to indicate the lack of any result
  * (in which case it is not used). In the case of mapped
@@ -280,11 +291,18 @@ import java.util.stream.Stream;
  * there is nothing there now" rule before using them in search or
  * reduce operations.
  *
+ * 作为参数提供的搜索和转换函数同样应返回null，以指示缺少任何结果（在这种情况下不使用）。
+ * 在mappedreductions的情况下，这还允许转换充当过滤器，如果不应组合元素，则返回null（或者在PrimitiveSpecialization的情况下返回标识基）。
+ * 在搜索或导出操作中使用复合转换和过滤之前，您可以通过在“null意味着现在什么都没有”规则下自己组合它们来创建复合转换和过滤器。
+ *
  * <p>Methods accepting and/or returning Entry arguments maintain
  * key-value associations. They may be useful for example when
  * finding the key for the greatest value. Note that "plain" Entry
  * arguments can be supplied using {@code new
  * AbstractMap.SimpleEntry(k,v)}.
+ *
+ * 方法接受和/或返回条目参数以维护键值关联。
+ * 例如，当找到最大值的键时，它们可能很有用。注意，可以使用newAbstractMap.SimpleEntry（k，v）提供“普通”入口参数。
  *
  * <p>Bulk operations may complete abruptly, throwing an
  * exception encountered in the application of a supplied
@@ -292,6 +310,9 @@ import java.util.stream.Stream;
  * concurrently executing functions could also have thrown
  * exceptions, or would have done so if the first exception had
  * not occurred.
+ *
+ * 批量操作可能会突然完成，引发在应用所提供的函数时遇到的异常。
+ * 请记住，在处理此类异常时，其他同时执行的函数也可能有ThrownException，或者在第一个异常未发生时也会有ThrowException。
  *
  * <p>Speedups for parallel compared to sequential forms are common
  * but not guaranteed.  Parallel operations involving brief functions
@@ -301,11 +322,19 @@ import java.util.stream.Stream;
  * lead to much actual parallelism if all processors are busy
  * performing unrelated tasks.
  *
+ * 与顺序形式相比，并行形式的加速是常见的，但不能保证。
+ * 如果并行计算的基础工作比计算本身更昂贵，则涉及小映射上简短函数的并行操作可能比序列形式执行得慢。
+ * 类似地，如果所有处理器都在总线形成不相关的任务，那么并行化可能不会导致太多实际的并行。
+ *
  * <p>All arguments to all task methods must be non-null.
+ *
+ * 所有任务方法的所有参数都必须为非null。
  *
  * <p>This class is a member of the
  * <a href="{@docRoot}/../technotes/guides/collections/index.html">
  * Java Collections Framework</a>.
+ *
+ * 此类是Java集合框架的成员
  *
  * @since 1.5
  * @author Doug Lea
@@ -555,12 +584,17 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * bounds for power of two table sizes, and is further required
      * because the top two bits of 32bit hash fields are used for
      * control purposes.
+     *
+     * 最大可能的表容量。该值必须正好为1<<30，才能在Java数组分配和索引界限内实现两个表大小的幂，
+     * 并且由于32位散列字段的前两位用于控制目的，因此需要进一步使用该值。
+     * 最大容量 = 1073741824
      */
     private static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The default initial table capacity.  Must be a power of 2
      * (i.e., at least 1) and at most MAXIMUM_CAPACITY.
+     * 默认的初始表容量。必须是2的幂（即，至少1），并且最多为 MAXIMUM_CAPACITY。
      */
     private static final int DEFAULT_CAPACITY = 16;
 
@@ -587,6 +621,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * actual floating point value isn't normally used -- it is
      * simpler to use expressions such as {@code n - (n >>> 2)} for
      * the associated resizing threshold.
+     *
+     * 此表的负载系数。在构造函数中重写此值仅影响初始表容量。
+     * 实际的浮点值通常不使用——使用诸如n-（n>>>2）之类的表达式来表示相关的调整阈值更简单。
      */
     private static final float LOAD_FACTOR = 0.75f;
 
@@ -608,6 +645,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * The bin count threshold for untreeifying a (split) bin during a
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
+     *
+     * 在尺寸调整操作期间取消检测（拆分）箱子的箱子计数阈值。应小于TREEIFY_阈值，且atmost 6至网格，并在移除下进行收缩检测。
      */
     static final int UNTREEIFY_THRESHOLD = 6;
 
@@ -616,6 +655,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * (Otherwise the table is resized if too many nodes in a bin.)
      * The value should be at least 4 * TREEIFY_THRESHOLD to avoid
      * conflicts between resizing and treeification thresholds.
+     *
+     * 存储箱可以树化的最小表容量。
+     * （否则，如果bin中的节点太多，则会调整表的大小。）该值应至少为4*TREEIFY_阈值，以避免调整大小和树化阈值之间的冲突。
      */
     static final int MIN_TREEIFY_CAPACITY = 64;
 
@@ -625,38 +667,50 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * serves as a lower bound to avoid resizers encountering
      * excessive memory contention.  The value should be at least
      * DEFAULT_CAPACITY.
+     *
+     * 每个转移步骤的最小重新绑定数。范围被细分为允许多个调整器线程。该值用作下限，以避免大小调整器遇到过度内存争用。
+     * 该值应至少为DEFAULT_CAPACITY。
      */
     private static final int MIN_TRANSFER_STRIDE = 16;
 
     /**
      * The number of bits used for generation stamp in sizeCtl.
      * Must be at least 6 for 32bit arrays.
+     *
+     * SizeCtrl中用于生成戳记的位数。对于32位阵列，必须至少为6。
      */
     private static int RESIZE_STAMP_BITS = 16;
 
     /**
      * The maximum number of threads that can help resize.
      * Must fit in 32 - RESIZE_STAMP_BITS bits.
+     *
+     * 可以帮助调整大小的最大线程数。必须适合32 - RESIZE_STAMP_BITS 位。
+     *
      */
     private static final int MAX_RESIZERS = (1 << (32 - RESIZE_STAMP_BITS)) - 1;
 
     /**
      * The bit shift for recording size stamp in sizeCtl.
+     * 在SizeCtrl中记录大小戳的位移位。
      */
     private static final int RESIZE_STAMP_SHIFT = 32 - RESIZE_STAMP_BITS;
 
     /*
      * Encodings for Node hash fields. See above for explanation.
+     * 节点哈希字段的编码。请参见上面的解释。
      */
-    static final int MOVED     = -1; // hash for forwarding nodes
-    static final int TREEBIN   = -2; // hash for roots of trees
-    static final int RESERVED  = -3; // hash for transient reservations
-    static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
+    static final int MOVED     = -1; // hash for forwarding nodes   转发节点的哈希
+    static final int TREEBIN   = -2; // hash for roots of trees     树根哈希
+    static final int RESERVED  = -3; // hash for transient reservations 临时保留的哈希
+    static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash 正常节点哈希的可用位
 
-    /** Number of CPUS, to place bounds on some sizings */
+    /* Number of CPUS, to place bounds on some sizings
+     *  CPU数量，以对某些大小进行限制
+     */
     static final int NCPU = Runtime.getRuntime().availableProcessors();
 
-    /** For serialization compatibility. */
+    /** For serialization compatibility. 用于序列化兼容性。 */
     private static final ObjectStreamField[] serialPersistentFields = {
         new ObjectStreamField("segments", Segment[].class),
         new ObjectStreamField("segmentMask", Integer.TYPE),
@@ -672,6 +726,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * in bulk tasks.  Subclasses of Node with a negative hash field
      * are special, and contain null keys and values (but are never
      * exported).  Otherwise, keys and vals are never null.
+     *
+     * 键值输入。此类永远不会导出为用户可变映射。
+     * 条目（即一个支持setValue的条目；请参阅下面的MapEntry），但可以用于批量任务中使用的只读遍历。
+     * 具有负哈希字段的节点的子类是特殊的，包含空键和值（但从未导出）。否则，keys 和 values 永远不会为null。
      */
     static class Node<K,V> implements Map.Entry<K,V> {
         final int hash;
@@ -705,6 +763,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Virtualized support for map.get(); overridden in subclasses.
+         * 对 map.get() 的虚拟化支持；在子类中重写。
          */
         Node<K,V> find(int h, Object k) {
             Node<K,V> e = this;
@@ -737,6 +796,16 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * cheapest possible way to reduce systematic lossage, as well as
      * to incorporate impact of the highest bits that would otherwise
      * never be used in index calculations because of table bounds.
+     *
+     * 将散列的高位（异或）扩散到低位，并强制topbit为0。
+     * 由于表使用两个掩码的幂，因此仅在当前掩码上方的位上变化的散列集将始终冲突。
+     * （在已知的例子中，有一组浮点键在小表格中保持连续整数。）
+     * 因此，我们应用了一种向下传播高位影响的变换。
+     * 比特传播的速度、效用和质量之间存在权衡。
+     * 由于许多常见的哈希集已经合理分布（因此无法从扩展中受益），并且由于我们使用树来处理箱子中的大型冲突集，
+     * 我们只是以最可能的方式对一些移位位进行异或，以减少系统损失，以及合并最高位的影响，
+     * 这些最高位由于表边界而永远不会用于索引计算。
+     *
      */
     static final int spread(int h) {
         return (h ^ (h >>> 16)) & HASH_BITS;
