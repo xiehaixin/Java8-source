@@ -84,6 +84,11 @@ import java.util.stream.Stream;
  * interoperable with {@code Hashtable} in programs that rely on its
  * thread safety but not on its synchronization details.
  *
+ * 一个哈希表，支持检索的完全并发性和更新的高预期并发性。此类遵循与java.util相同的功能规范。
+ * Hashtable，包括与Hashtable的每个方法相对应的方法版本。
+ * 然而，即使所有操作都是线程安全的，检索操作也需要锁定，并且支持以阻止所有访问的方式锁定整个表。
+ * 该类在依赖其线程安全性但不依赖其同步细节的程序中与哈希表完全互操作。
+ *
  * <p>Retrieval operations (including {@code get}) generally do not
  * block, so may overlap with update operations (including {@code put}
  * and {@code remove}). Retrievals reflect the results of the most
@@ -104,6 +109,16 @@ import java.util.stream.Stream;
  * Otherwise the results of these methods reflect transient states
  * that may be adequate for monitoring or estimation purposes, but not
  * for program control.
+ * 检索操作（包括get）通常不会阻塞，因此可能与更新操作（包括put和remove）重叠。
+ * 检索反映了最近完成的更新操作在开始时的结果。
+ * （更正式地说，给定键的更新操作在与报告更新值的该键的任何（非空）检索的关系之前发生。）
+ * 对于putAll和clear等聚合操作，并发检索可能只反映插入或删除某些条目。
+ * 类似地，迭代器、拆分器和枚举返回反映哈希表在迭代器/枚举创建时或创建后某个点的状态的元素。
+ * 它们不会抛出{@link java.util.ConcurrentModificationException ConcurrentModificationException}。
+ * 然而，迭代器设计为一次只能由一个线程使用。
+ * 请记住，聚合状态方法（包括size、isEmpty和containsValue）的结果通常只有在其他线程中没有对映射进行并发更新时才有用。
+ * 否则，这些方法的结果反映的瞬态可能足以用于监测或估计目的，但不足以用于程序控制。
+ *
  *
  * <p>The table is dynamically expanded when there are too many
  * collisions (i.e., keys that have distinct hash codes but fall into
@@ -126,12 +141,23 @@ import java.util.stream.Stream;
  * {@code hashCode()} is a sure way to slow down performance of any
  * hash table. To ameliorate impact, when keys are {@link Comparable},
  * this class may use comparison order among keys to help break ties.
+ * 当冲突过多时（即，具有不同哈希代码但落入与表大小成模的相同时隙的键），该表会动态扩展，
+ * 预期平均效果是每个映射保持大约两个箱子（对应于0.75的负载因子阈值）。随着映射的添加和删除，这个平均值可能会有很大差异，
+ * 但总的来说，这为哈希表保持了公认的时间/空间权衡。然而，调整此哈希表或任何其他类型哈希表的大小可能是一个相对缓慢的操作。
+ * 如果可能，最好提供大小估计作为可选的{@code initialCapacity}构造函数参数。
+ * 另一个可选的loadFactor构造函数参数通过指定用于计算为给定数量的元素分配的空间量的表密度，提供了自定义初始表容量的进一步方法。
+ * 此外，为了与此类的早期版本兼容，构造函数可以选择性地指定预期的并发级别，作为内部大小调整的附加提示。
+ * 请注意，使用具有完全相同hashCode()的多个键肯定会降低任何哈希表的性能。
+ * 为了改善影响，当键具有可比性时，此类可以使用键之间的比较顺序来帮助打破联系。
  *
  * <p>A {@link Set} projection of a ConcurrentHashMap may be created
  * (using {@link #newKeySet()} or {@link #newKeySet(int)}), or viewed
  * (using {@link #keySet(Object)} when only keys are of interest, and the
  * mapped values are (perhaps transiently) not used or all take the
  * same mapping value.
+ * ConcurrentHashMap的集合投影可以创建
+ * （使用#newKeySet（）或#NewKeyset（int））或查看（当只有键感兴趣，并且映射值（可能暂时）未使用或全部采用相同的映射值时，
+ * 使用ŞkeySet（Object））。
  *
  * <p>A ConcurrentHashMap can be used as scalable frequency map (a
  * form of histogram or multiset) by using {@link
@@ -140,12 +166,21 @@ import java.util.stream.Stream;
  * to a {@code ConcurrentHashMap<String,LongAdder> freqs}, you can use
  * {@code freqs.computeIfAbsent(k -> new LongAdder()).increment();}
  *
+ * 通过使用{@link java.util.concurrent.atomic.LongAdder}值并通过#computefabsent computefabsent进行初始化，
+ * ConcurrentHashMap可以用作可扩展的频率图（直方图或多集的一种形式）。
+ * 例如，要向ConcurrenthMap<String，longader>freqs添加一个计数，
+ * 可以使用freqs.computefacsent（k->new longader()）.increment();
+ *
  * <p>This class and its views and iterators implement all of the
  * <em>optional</em> methods of the {@link Map} and {@link Iterator}
  * interfaces.
  *
+ * 该类及其视图和迭代器实现了映射和迭代者接口的所有可选方法。
+ *
  * <p>Like {@link Hashtable} but unlike {@link HashMap}, this class
  * does <em>not</em> allow {@code null} to be used as a key or value.
+ *
+ * 与Hashtable类似，但与HashMap不同，该类不允许将null用作键或值。
  *
  * <p>ConcurrentHashMaps support a set of sequential and parallel bulk
  * operations that, unlike most {@link Stream} methods, are designed
@@ -163,27 +198,40 @@ import java.util.stream.Stream;
  * ideally be side-effect-free. Bulk operations on {@link java.util.Map.Entry}
  * objects do not support method {@code setValue}.
  *
+ * ConcurrentHashMaps支持一组顺序和并行批量操作，与大多数流方法不同，这些操作被设计为安全且通常合理地应用，
+ * 即使与其他线程同时更新的映射一起应用；例如，在计算共享注册表中值的快照摘要时。有三种操作，每种都有四种形式，
+ * 接受带有键、值、条目和（键、值）参数和/或返回值的函数。由于ConcurrentHashMap的元素不是以任何特定方式排序的，
+ * 并且可以在不同的并行执行中以不同的顺序进行处理，因此提供的函数的正确性不应取决于任何排序，或任何其他对象或值，
+ * 这些对象或值在计算过程中可能会瞬时变化；除forEach操作外，理想情况下应无副作用。java.util.Map上的批量操作。
+ * 条目对象不支持方法setValue。
+ *
  * <ul>
  * <li> forEach: Perform a given action on each element.
  * A variant form applies a given transformation on each element
  * before performing the action.</li>
+ * forEach：对每个元素执行给定的操作。变量形式在执行操作之前对每个元素应用给定的转换。
  *
  * <li> search: Return the first available non-null result of
  * applying a given function on each element; skipping further
  * search when a result is found.</li>
+ * 搜索：返回在每个元素上应用给定函数的第一个可用非空结果；找到结果时跳过进一步搜索。
  *
  * <li> reduce: Accumulate each element.  The supplied reduction
  * function cannot rely on ordering (more formally, it should be
  * both associative and commutative).  There are five variants:
+ *
+ * 减少：累积每个元素。提供的约化函数不能依赖于排序（更正式地说，它应该是关联的和交换的）。有五种变体：
  *
  * <ul>
  *
  * <li> Plain reductions. (There is not a form of this method for
  * (key, value) function arguments since there is no corresponding
  * return type.)</li>
+ * 普通减少。（由于没有相应的返回类型，因此（key，value）函数参数没有此方法的形式。）
  *
  * <li> Mapped reductions that accumulate the results of a given
  * function applied to each element.</li>
+ * 累积应用于每个元素的给定函数的结果的映射约化。
  *
  * <li> Reductions to scalar doubles, longs, and ints, using a
  * given basis value.</li>
