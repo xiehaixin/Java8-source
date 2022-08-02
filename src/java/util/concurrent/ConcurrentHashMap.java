@@ -801,7 +801,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * 由于表使用两个掩码的幂，因此仅在当前掩码上方的位上变化的散列集将始终冲突。
      * （在已知的例子中，有一组浮点键在小表格中保持连续整数。）
      * 因此，我们应用了一种向下传播高位影响的变换。
-     * 比特传播的速度、效用和质量之间存在权衡。
+     * bit 传播的速度、效用和质量之间存在权衡。
      * 由于许多常见的哈希集已经合理分布（因此无法从扩展中受益），并且由于我们使用树来处理箱子中的大型冲突集，
      * 我们只是以最可能的方式对一些移位位进行异或，以减少系统损失，以及合并最高位的影响，
      * 这些最高位由于表边界而永远不会用于索引计算。
@@ -814,6 +814,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns a power of two table size for the given desired capacity.
      * See Hackers Delight, sec 3.2
+     * 返回给定所需容量的两个表大小的幂。见第3.2节
      */
     private static final int tableSizeFor(int c) {
         int n = c - 1;
@@ -828,6 +829,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns x's Class if it is of the form "class C implements
      * Comparable<C>", else null.
+     * 如果x的类的形式为“Class C implements Comparable<C>”，则返回x的类，否则返回null。
      */
     static Class<?> comparableClassFor(Object x) {
         if (x instanceof Comparable) {
@@ -851,6 +853,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns k.compareTo(x) if x matches kc (k's screened comparable
      * class), else 0.
+     *
+     * 如果x与kc（k的筛选可比类）匹配，则返回k.compareTo（x），否则返回0。
      */
     @SuppressWarnings({"rawtypes","unchecked"}) // for cast to Comparable
     static int compareComparables(Class<?> kc, Object k, Object x) {
@@ -859,6 +863,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     /* ---------------- Table element access -------------- */
+    /* ---------------------- 表元素访问 ------------------- */
 
     /*
      * Volatile access methods are used for table elements as well as
@@ -874,18 +879,50 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * and so in principle require only release ordering, not
      * full volatile semantics, but are currently coded as volatile
      * writes to be conservative.
+     * 可变访问方法用于表元素以及调整大小时正在进行的下一个表的元素。
+     * 调用者必须检查所有tab参数的使用是否为null。
+     * 所有调用者还偏执地预先检查tab的长度不是零（或等效的检查），从而确保任何采用散列值和（长度-1）形式的索引参数都是有效的索引。
+     * 注意，为了纠正用户的wrt任意并发错误，这些检查必须对局部变量进行操作，这就解释了下面一些看起来奇怪的内联赋值。
+     * 请注意，对setTabAt的调用总是发生在锁定区域内，因此原则上只需要发布顺序，而不需要完整的易失性语义，
+     * 但目前编码为易失性写入以保持保守。
      */
 
+    /**
+     * Unsafe 获取数组下标的元素（可见性）
+     * @param tab
+     * @param i
+     * @param <K>
+     * @param <V>
+     * @return
+     */
     @SuppressWarnings("unchecked")
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
         return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
     }
 
+    /**
+     * Unsafe CAS尝试修改数组下标的元素，修改失败返回false
+     * @param tab
+     * @param i
+     * @param c
+     * @param v
+     * @param <K>
+     * @param <V>
+     * @return
+     */
     static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
                                         Node<K,V> c, Node<K,V> v) {
         return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
     }
 
+    /**
+     * Unsafe 强制修改下标元素
+     * @param tab
+     * @param i
+     * @param v
+     * @param <K>
+     * @param <V>
+     */
     static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
         U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);
     }
@@ -895,11 +932,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * The array of bins. Lazily initialized upon first insertion.
      * Size is always a power of two. Accessed directly by iterators.
+     *
+     * 箱子阵列。第一次插入时延迟初始化。大小总是二的幂。由迭代器直接访问。
      */
     transient volatile Node<K,V>[] table;
 
     /**
      * The next table to use; non-null only while resizing.
+     * 下一个要使用的表；仅在调整大小时为非null。
      */
     private transient volatile Node<K,V>[] nextTable;
 
@@ -907,6 +947,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Base counter value, used mainly when there is no contention,
      * but also as a fallback during table initialization
      * races. Updated via CAS.
+     * 基本计数器值，主要在没有争用时使用，但在表初始化竞争期间也用作回退。通过CAS更新。
      */
     private transient volatile long baseCount;
 
@@ -917,21 +958,27 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * when table is null, holds the initial table size to use upon
      * creation, or 0 for default. After initialization, holds the
      * next element count value upon which to resize the table.
+     * 表初始化和调整大小控件。
+     * 如果为负数，则表正在初始化或调整大小：-1表示初始化，否则-（1+活动调整大小线程的数量）。
+     * 否则，当table为null时，保留创建时使用的初始表大小，默认值为0。初始化后，保留下一个要调整表大小的元素计数值。
      */
     private transient volatile int sizeCtl;
 
     /**
      * The next table index (plus one) to split while resizing.
+     * 调整大小时要拆分的下一个表索引（加一）。
      */
     private transient volatile int transferIndex;
 
     /**
      * Spinlock (locked via CAS) used when resizing and/or creating CounterCells.
+     * 调整和/或创建计数器单元格时使用的自旋锁（通过CAS锁定）。
      */
     private transient volatile int cellsBusy;
 
     /**
      * Table of counter cells. When non-null, size is a power of 2.
+     * 计数器单元格表。非null时，大小为2的幂。
      */
     private transient volatile CounterCell[] counterCells;
 
@@ -942,9 +989,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
 
     /* ---------------- Public operations -------------- */
+    /* --------------------- 公共业务 ------------------- */
 
     /**
      * Creates a new, empty map with the default initial table size (16).
+     * 使用默认的初始表大小（16）创建一个新的空映射。
      */
     public ConcurrentHashMap() {
     }
@@ -953,11 +1002,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Creates a new, empty map with an initial table size
      * accommodating the specified number of elements without the need
      * to dynamically resize.
+     * 创建一个新的空映射，其初始表大小适应指定数量的元素，而无需动态调整大小。
      *
      * @param initialCapacity The implementation performs internal
      * sizing to accommodate this many elements.
+     *                        实现执行内部大小调整以适应这么多元素。
      * @throws IllegalArgumentException if the initial capacity of
      * elements is negative
+     * 如果元件的初始容量为负
      */
     public ConcurrentHashMap(int initialCapacity) {
         if (initialCapacity < 0)
@@ -970,6 +1022,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Creates a new map with the same mappings as the given map.
+     * 使用与给定映射相同的映射创建新映射。
      *
      * @param m the map
      */
@@ -982,6 +1035,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Creates a new, empty map with an initial table size based on
      * the given number of elements ({@code initialCapacity}) and
      * initial table density ({@code loadFactor}).
+     * 根据给定的元素数（初始容量）和初始表密度（加载因子），创建具有初始表大小的新空映射。
      *
      * @param initialCapacity the initial capacity. The implementation
      * performs internal sizing to accommodate this many elements,
@@ -1002,6 +1056,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * the given number of elements ({@code initialCapacity}), table
      * density ({@code loadFactor}), and number of concurrently
      * updating threads ({@code concurrencyLevel}).
+     * 根据给定的元素数（initialCapacity）、
+     * 表密度（loadFactor）和并发更新线程数（concurrentylevel），创建一个具有初始表大小的新的空映射。
      *
      * @param initialCapacity the initial capacity. The implementation
      * performs internal sizing to accommodate this many elements,
@@ -1049,11 +1105,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Returns the value to which the specified key is mapped,
      * or {@code null} if this map contains no mapping for the key.
+     * 返回指定键映射到的值，如果此映射不包含键的映射，则返回null。
      *
      * <p>More formally, if this map contains a mapping from a key
      * {@code k} to a value {@code v} such that {@code key.equals(k)},
      * then this method returns {@code v}; otherwise it returns
      * {@code null}.  (There can be at most one such mapping.)
+     * 更正式地说，如果该映射包含从键k到值v的映射，则该键。等于（k），则该方法返回v；否则返回null。（最多可以有一个这样的映射。）
      *
      * @throws NullPointerException if the specified key is null
      */
@@ -1066,6 +1124,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 if ((ek = e.key) == key || (ek != null && key.equals(ek)))
                     return e.val;
             }
+            // TODO 什么情况下 hash < 0
             else if (eh < 0)
                 return (p = e.find(h, key)) != null ? p.val : null;
             while ((e = e.next) != null) {
@@ -1079,8 +1138,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Tests if the specified object is a key in this table.
+     * 测试指定的对象是否是此表中的键。
      *
-     * @param  key possible key
+     * @param  key possible key 可能的键
      * @return {@code true} if and only if the specified object
      *         is a key in this table, as determined by the
      *         {@code equals} method; {@code false} otherwise
@@ -1094,6 +1154,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Returns {@code true} if this map maps one or more keys to the
      * specified value. Note: This method may require a full traversal
      * of the map, and is much slower than method {@code containsKey}.
+     * 如果此映射将一个或多个键映射到指定值，则返回true。注意：此方法可能需要完全遍历地图，并且比containsKey方法慢得多。
      *
      * @param value value whose presence in this map is to be tested
      * @return {@code true} if this map maps one or more keys to the
@@ -3397,6 +3458,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Encapsulates traversal for methods such as containsValue; also
      * serves as a base class for other iterators and spliterators.
+     * 封装方法的遍历，例如containsValue；还用作其他迭代器和拆分器的基类。
      *
      * Method advance visits once each still-valid node that was
      * reachable upon iterator construction. It might miss some that
@@ -3406,6 +3468,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * bookkeeping state that is difficult to optimize away amidst
      * volatile accesses.  Even so, traversal maintains reasonable
      * throughput.
+     * 方法对迭代器构造后可到达的每个仍然有效的节点提前访问一次。
+     * 它可能会错过一些在访问垃圾桶后添加到垃圾桶的内容，这对于一致性保证来说是可以的。
+     * 面对可能正在进行的规模调整，维持这一财产需要相当多的簿记状态，在不稳定的访问中很难优化。
+     * 即便如此，遍历仍能保持合理的吞吐量。
      *
      * Normally, iteration proceeds bin-by-bin traversing lists.
      * However, if the table has been resized, then all future steps
@@ -3414,6 +3480,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * paranoically cope with potential sharing by users of iterators
      * across threads, iteration terminates if a bounds checks fails
      * for a table read.
+     * 通常，迭代逐层遍历列表。
+     * 但是，如果表已调整大小，则所有后续步骤都必须在当前索引以及（索引+基本大小）处遍历bin；等等，以便进一步调整尺寸。
+     * 为了偏执地处理用户跨线程共享迭代器的潜在问题，如果边界检查无法读取表，迭代就会终止。
      */
     static class Traverser<K,V> {
         Node<K,V>[] tab;        // current table; updated if resized
@@ -6429,6 +6498,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             ABASE = U.arrayBaseOffset(ak);
             int scale = U.arrayIndexScale(ak);
             if ((scale & (scale - 1)) != 0)
+                // 数据类型比例不是二的幂
                 throw new Error("data type scale not a power of two");
             ASHIFT = 31 - Integer.numberOfLeadingZeros(scale);
         } catch (Exception e) {
