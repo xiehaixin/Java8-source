@@ -62,37 +62,48 @@ import java.util.function.ToLongFunction;
  * operations, such as accumulating elements into collections, summarizing
  * elements according to various criteria, etc.
  *
+ * <p>实现各种有用的约简操作的 {@link Collector} 的实现，例如将元素累积到集合中，根据各种标准对元素进行汇总，等等。
+ *
  * <p>The following are examples of using the predefined collectors to perform
  * common mutable reduction tasks:
  *
+ * <p>以下是使用预定义收集器执行常见可变约简任务的示例:
+ *
  * <pre>{@code
  *     // Accumulate names into a List
+ *     // 将名称累积到 List 中
  *     List<String> list = people.stream().map(Person::getName).collect(Collectors.toList());
  *
  *     // Accumulate names into a TreeSet
+ *     // 将名称累积到 TreeSet 中
  *     Set<String> set = people.stream().map(Person::getName).collect(Collectors.toCollection(TreeSet::new));
  *
  *     // Convert elements to strings and concatenate them, separated by commas
+ *     // 将元素转换为字符串并连接它们，用逗号分隔
  *     String joined = things.stream()
  *                           .map(Object::toString)
  *                           .collect(Collectors.joining(", "));
  *
  *     // Compute sum of salaries of employee
+ *     // 计算员工的工资总和
  *     int total = employees.stream()
  *                          .collect(Collectors.summingInt(Employee::getSalary)));
  *
  *     // Group employees by department
+ *     // 按部门分组员工
  *     Map<Department, List<Employee>> byDept
  *         = employees.stream()
  *                    .collect(Collectors.groupingBy(Employee::getDepartment));
  *
  *     // Compute sum of salaries by department
+ *     // 按部门计算工资总额
  *     Map<Department, Integer> totalByDept
  *         = employees.stream()
  *                    .collect(Collectors.groupingBy(Employee::getDepartment,
  *                                                   Collectors.summingInt(Employee::getSalary)));
  *
  *     // Partition students into passing and failing
+ *     // 把学生分成及格和不及格两类
  *     Map<Boolean, List<Student>> passingFailing =
  *         students.stream()
  *                 .collect(Collectors.partitioningBy(s -> s.getGrade() >= PASS_THRESHOLD));
