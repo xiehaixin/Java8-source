@@ -888,6 +888,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      */
 
     /**
+     * 为了拿到 并发下 tab 下标下的最新的值，volatile 可见性
+     * 因为 tab 是个数组，volatile可以修饰tab，但tab里面但值并不是volatile的，所以需用到 U.getObjectVolatile
      * Unsafe 获取数组下标的元素（可见性）
      * @param tab
      * @param i
@@ -2442,10 +2444,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      */
     private final void addCount(long x, int check) {
         CounterCell[] as; long b, s;
+        // counterCells 存在 或者 baseCount修改失败，就是说，存在并发
         if ((as = counterCells) != null ||
             !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
             CounterCell a; long v; int m;
             boolean uncontended = true;
+            // 各种判断counterCell是没有值的情况，或者是值修改失败的情况
             if (as == null || (m = as.length - 1) < 0 ||
                 (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
                 !(uncontended =
@@ -2462,6 +2466,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             while (s >= (long)(sc = sizeCtl) && (tab = table) != null &&
                    (n = tab.length) < MAXIMUM_CAPACITY) {
                 int rs = resizeStamp(n);
+                /*
+                 * sc < 0 表示正在扩容，二进制高位等于1，在 rs << RESIZE_STAMP_SHIFT) + 2 的时候，左移了16位，
+                 * 所以 sc变成了负数，这个时候就代表正在扩容
+                 */
                 if (sc < 0) {
                     if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                         sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
@@ -2550,6 +2558,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Moves and/or copies the nodes in each bin to new table. See
      * above for explanation.
+     *
+     * 扩容
+     * 扩大数组的长度
+     * 转移原本的数据链
      */
     private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
         int n = tab.length, stride;
@@ -2707,7 +2719,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         return sum;
     }
 
-    // See LongAdder version for explanation
+    // See LongAdder version for explanation 见LongAdder版本的解释
     private final void fullAddCount(long x, boolean wasUncontended) {
         int h;
         if ((h = ThreadLocalRandom.getProbe()) == 0) {
@@ -2715,11 +2727,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             h = ThreadLocalRandom.getProbe();
             wasUncontended = true;
         }
-        boolean collide = false;                // True if last slot nonempty
+        boolean collide = false;                // True if last slot nonempty 如果最后一个槽非空则为True
         for (;;) {
             CounterCell[] as; CounterCell a; int n; long v;
             if ((as = counterCells) != null && (n = as.length) > 0) {
                 if ((a = as[(n - 1) & h]) == null) {
+                    // 进行 rs[(rs.length-1) & h]的root节点赋值
                     if (cellsBusy == 0) {            // Try to attach new Cell
                         CounterCell r = new CounterCell(x); // Optimistic create
                         if (cellsBusy == 0 &&
@@ -2743,8 +2756,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     }
                     collide = false;
                 }
-                else if (!wasUncontended)       // CAS already known to fail
-                    wasUncontended = true;      // Continue after rehash
+                else if (!wasUncontended)       // CAS already known to fail CAS已经失败了
+                    wasUncontended = true;      // Continue after rehash 之后继续重复
                 else if (U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))
                     break;
                 else if (counterCells != as || n >= NCPU)
@@ -2785,7 +2798,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     break;
             }
             else if (U.compareAndSwapLong(this, BASECOUNT, v = baseCount, v + x))
-                break;                          // Fall back on using base
+                break;                          // Fall back on using base 回到使用基础
         }
     }
 
